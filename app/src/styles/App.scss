@@ -1,0 +1,149 @@
+.App {
+  width: 100vw;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.App-container {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  width: 300px;
+  height: 860px;
+
+  @media (max-height: 900px) {
+    margin-top: 60px;
+    margin-bottom: 50px;
+  }
+}
+
+.App-logo {
+  width: 300px;
+  height: 320px;
+}
+
+.App-title {
+  font-family: Verdanaz;
+  margin-bottom: 5px;
+  text-align: center;
+}
+.select-collection{
+  width:100%;
+  margin-top:20px;
+}
+.select-price{
+  position:relative;
+  width:300px;
+  margin-top:20px;
+  outline: none;
+  height: 40px;
+  background-color: inherit;
+  border: 2px solid #8D98F8;
+  color: white;
+  font-size: 16px;
+  font-family: Verdanai;
+  padding: 7px;
+}
+.select-rarity{
+  position:relative;
+  width:300px;
+  margin-top:20px;
+  outline: none;
+  height: 40px;
+  background-color: inherit;
+  border: 2px solid #8D98F8;
+  color: white;
+  font-size: 16px;
+  font-family: Verdanai;
+  padding: 7px;
+}
+.buttons{
+  display: flex;
+  width: 300px;
+  margin-top: 20px;
+  justify-content: space-between;
+  position:absolute;
+  bottom:0;
+  flex-wrap: wrap;
+}
+.button-prev{
+  background-color: inherit;
+  height: 30px;
+  margin-left: 5px;
+  font-size: 14px;
+  font-family: Verdanai;
+  border: 2px solid #8D98F8;
+  color: white;
+  width: 60px;
+}
+.button-next{
+  background-color: inherit;
+  height: 30px;
+  margin-right: 5px;
+  font-size: 14px;
+  font-family: Verdanai;
+  border: 2px solid #8D98F8;
+  color: white;
+  width: 60px;
+}
+::placeholder{
+  color:white;
+  filter:brightness(0.5);
+  line-height:2.7;
+  font-size: 13.5px;
+  font-family: Verdanai;
+  width: 100%;
+}
+.line{
+  background-color: #8d98f8;
+  width: 100%;
+  height: 2px;
+  min-height: 2px;
+  margin-top: -18px;
+}
+.filters{
+  flex-direction: column;
+  position:absolute;
+  top:430px;
+}
+.found-value{
+  display: none;
+  width: 300px;
+  flex-direction: column;
+  position:absolute;
+  top:430px;
+}
+.no-found-value{
+  display: none;
+  width: 300px;
+  flex-direction: column;
+}
+.form{
+  width: 300px;
+  min-height: 2px;
+  margin-top: 18px;
+  border: 2px solid #8D98F8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.button-send{
+  background-color: inherit;
+  height: 30px;
+  margin-right: 5px;
+  font-size: 14px;
+  font-family: Verdanai;
+  border: 2px solid #8D98F8;
+  color: white;
+  width: 60px;
+  margin-top: 20px;
+  margin-bottom: 10px;
+}
+.back-App{
+  display:flex;
+  flex-direction: column;
+  width:300px;
+  position: relative;
+}

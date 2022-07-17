@@ -1,0 +1,30 @@
+* {
+  box-sizing: border-box;
+}
+
+@font-face {
+  font-family: 'Verdanaz';
+  src: url('../assets/verdanaz.ttf') format('opentype');
+  font-weight: 600;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Verdanai';
+  src: url('../assets/verdanai.ttf') format('opentype');
+  font-weight: 600;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Ebrima';
+  src: url('../assets/ebrima.ttf') format('opentype');
+  font-weight: 600;
+  font-style: normal;
+}
+
+body {
+  margin: 0;
+  background-color: #000000;
+  color: #FFFFFF;
+}

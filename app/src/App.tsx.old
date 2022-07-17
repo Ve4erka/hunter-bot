@@ -1,0 +1,299 @@
+import React, {MouseEvent, useCallback, useEffect, useState} from 'react';
+import logo from './assets/logo.png';
+import './styles/App.scss';
+import {useConnection, useWallet} from '@solana/wallet-adapter-react';
+import Loading from 'react-loading';
+import {useWalletModal} from "@solana/wallet-adapter-react-ui";
+import axios from "axios";
+import {PublicKey} from "@solana/web3.js";
+import {AiOutlineCheck} from "react-icons/ai";
+
+const DISCORD_API_BASE_URL = 'https://discord.com/api/v9';
+
+type LocalStoredDiscordInfo = {
+    accessToken: string | null,
+    userName: string | null,
+    userDiscriminator: number | null
+}
+
+type LocalStoredWalletInfo = {
+    walletPubkey: PublicKey | null,
+    signMessage: Uint8Array | null,
+    signedMessage: Uint8Array | null
+}
+
+type ConnectButtonState = {
+    text: string,
+    disabled: boolean,
+    success: boolean,
+    icon: JSX.Element | null
+}
+
+function App() {
+    const {wallet, publicKey, signMessage, connect, disconnect} = useWallet();
+
+    let {visible: walletModalVisible, setVisible: setWalletModalVisible} = useWalletModal();
+    let [connectWalletState, setConnectWalletState] = useState({
+        text: "Loading..",
+        disabled: false,
+        icon: null
+    } as ConnectButtonState);
+    let [connectDiscordState, setConnectDiscordState] = useState({
+        text: "Loading..",
+        disabled: false,
+        icon: null
+    } as ConnectButtonState);
+    let [localStoredDiscordInfo, setLocalStoredDiscordInfo] = useState(() => {
+        const saved = localStorage.getItem("discordInfo");
+        let discordInfo;
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            discordInfo = {
+                accessToken: parsed.accessToken,
+                userName: parsed.userName,
+                userDiscriminator: parsed.userDiscriminator,
+            } as LocalStoredDiscordInfo;
+        } else {
+            discordInfo = {} as LocalStoredDiscordInfo;
+        }
+        // (async function (discordInfo: LocalStoredDiscordInfo) {
+            // if (discordInfo.authToken) {
+            //     let me = await axios.get(`${DISCORD_API_BASE_URL}/users/@me`, { headers: { Authorization: `Bearer ${discordInfo.authToken}` } });
+            //     console.log(me);
+            // }
+        // })(discordInfo);
+        return discordInfo;
+    });
+    useEffect(() => {
+        localStorage.setItem("discordInfo", JSON.stringify({
+            accessToken: localStoredDiscordInfo.accessToken,
+            userName: localStoredDiscordInfo.userName,
+            userDiscriminator: localStoredDiscordInfo.userDiscriminator
+        }));
+    }, [localStoredDiscordInfo.accessToken, localStoredDiscordInfo.userName, localStoredDiscordInfo.userDiscriminator])
+    useEffect(() => {
+        const authCode = new URLSearchParams(window.location.search).get('code');
+        if (authCode) {
+            window.history.replaceState({}, document.title, '/');
+            (async function () {
+                const resp = await axios.get<{ access_token: string }>('/get_discord_access_token', {
+                    params: {
+                        code: authCode,
+                        redirect_uri: process.env.REACT_APP_URL as string
+                    }
+                });
+                const accessToken = resp.data.access_token;
+                const me = await axios.get<{ username: string, discriminator: string }>(`${DISCORD_API_BASE_URL}/users/@me`, {headers: {Authorization: `Bearer ${accessToken}`}});
+                setLocalStoredDiscordInfo({
+                    accessToken,
+                    userName: me.data.username,
+                    userDiscriminator: parseInt(me.data.discriminator, 10)
+                } as LocalStoredDiscordInfo);
+            })()
+        }
+    }, []);
+    useEffect(() => {
+        if (localStoredDiscordInfo.accessToken && localStoredDiscordInfo.userName && localStoredDiscordInfo.userDiscriminator) {
+            setConnectDiscordState({
+                text: `Connected as ${localStoredDiscordInfo.userName}#${localStoredDiscordInfo.userDiscriminator}`,
+                disabled: true,
+                success: true,
+                icon: <AiOutlineCheck color="#0DF8FF" size={24}/>
+            })
+        } else {
+            setConnectDiscordState({
+                text: 'Connect Discord account',
+                disabled: false,
+                success: false,
+                icon: null
+            });
+        }
+    }, [localStoredDiscordInfo.accessToken, localStoredDiscordInfo.userName, localStoredDiscordInfo.userDiscriminator])
+
+    let [localStoredWalletInfo, setLocalStoredWalletInfo] = useState(() => {
+        const saved = localStorage.getItem("walletInfo");
+        let walletInfo;
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            walletInfo = {
+                walletPubkey: parsed.walletPubkey,
+                signMessage: parsed.signMessage && Uint8Array.from(parsed.signMessage),
+                signedMessage: parsed.signedMessage && Uint8Array.from(parsed.signedMessage)
+            } as LocalStoredWalletInfo;
+        } else {
+            walletInfo = {} as LocalStoredWalletInfo;
+        }
+        (async function (walletInfo: LocalStoredWalletInfo) {
+            const resp = await axios.get<{ sign_message: string }>('/get_sign_message');
+            const signMessage = new TextEncoder().encode(resp.data.sign_message);
+            if (
+                !walletInfo.signMessage ||
+                walletInfo.signMessage.length !== signMessage.length ||
+                !walletInfo.signMessage.every((v, i) => v === signMessage[i])
+            ) {
+                // Sign message changed, need user to re-login wallet
+                setLocalStoredWalletInfo({signMessage} as LocalStoredWalletInfo);
+            } else {
+                setLocalStoredWalletInfo({
+                    walletPubkey: walletInfo.walletPubkey,
+                    signMessage,
+                    signedMessage: walletInfo.signedMessage
+                } as LocalStoredWalletInfo);
+            }
+        })(walletInfo);
+        return walletInfo;
+    });
+    useEffect(() => {
+        localStorage.setItem("walletInfo", JSON.stringify({
+            walletPubkey: localStoredWalletInfo.walletPubkey,
+            signMessage: localStoredWalletInfo.signMessage && Array.from(localStoredWalletInfo.signMessage),
+            signedMessage: localStoredWalletInfo.signedMessage && Array.from(localStoredWalletInfo.signedMessage)
+        }));
+    }, [localStoredWalletInfo.walletPubkey, localStoredWalletInfo.signMessage, localStoredWalletInfo.signedMessage])
+
+    useEffect(() => {
+        if (localStoredWalletInfo.walletPubkey && localStoredWalletInfo.signedMessage) {
+            const publicKeyStr = localStoredWalletInfo.walletPubkey.toString();
+            const publicKeyUserFriendly = `${publicKeyStr.slice(0, 4)}..${publicKeyStr.slice(-4)}`;
+            if (localStoredWalletInfo.signedMessage) {
+                setConnectWalletState({
+                    text: `Connected as ${publicKeyUserFriendly}`,
+                    disabled: true,
+                    success: true,
+                    icon: <AiOutlineCheck color="#0DF8FF" size={24}/>
+                });
+            }
+        } else if (publicKey) {
+            setConnectWalletState({
+                text: 'Waiting for signature',
+                disabled: true,
+                success: false,
+                icon: <Loading type="spin" color="#8D98F8" width={24} height={24}/>
+            });
+        } else {
+            setConnectWalletState({
+                text: 'Connect solana wallet',
+                disabled: false,
+                success: false,
+                icon: null
+            });
+        }
+
+        (async function () {
+            if (signMessage && localStoredWalletInfo.signMessage && !localStoredWalletInfo.walletPubkey && !localStoredWalletInfo.signedMessage) {
+                const signedMessage = await signMessage(localStoredWalletInfo.signMessage);
+                setLocalStoredWalletInfo({
+                    walletPubkey: publicKey,
+                    signMessage: localStoredWalletInfo.signMessage,
+                    signedMessage
+                })
+            }
+        })();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [publicKey, localStoredWalletInfo.signMessage, localStoredWalletInfo.signedMessage, localStoredWalletInfo.walletPubkey])
+
+    useEffect(() => {
+        if (wallet && wallet.readyState === "Installed" && !localStoredWalletInfo.walletPubkey && !publicKey) {
+            (async function () {
+                await connect()
+            })();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [wallet, publicKey, localStoredWalletInfo.walletPubkey]);
+
+    const handleConnectDiscordButtonClick = useCallback(
+        (event: MouseEvent<HTMLButtonElement>) => {
+            if (!event.defaultPrevented) window.location.href = `${DISCORD_API_BASE_URL}/oauth2/authorize?${new URLSearchParams({
+                client_id: process.env.REACT_APP_DISCORD_ID as string,
+                redirect_uri: process.env.REACT_APP_URL as string,
+                response_type: 'code',
+                scope: 'identify'
+            }).toString()}`;
+        },
+        []
+    );
+    const handleResetDiscordButtonClick = useCallback(
+        (event: MouseEvent<HTMLButtonElement>) => {
+            if (!event.defaultPrevented) (async function () {
+                await disconnect();
+                setLocalStoredDiscordInfo({} as LocalStoredDiscordInfo);
+            })();
+        },
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        []
+    );
+
+    const handleConnectWalletButtonClick = useCallback(
+        (event: MouseEvent<HTMLButtonElement>) => {
+            if (!event.defaultPrevented) setWalletModalVisible(!walletModalVisible);
+        },
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [walletModalVisible]
+    );
+    const handleResetWalletButtonClick = useCallback(
+        (event: MouseEvent<HTMLButtonElement>) => {
+            if (!event.defaultPrevented) (async function () {
+                await disconnect();
+                setLocalStoredWalletInfo({
+                    signMessage: localStoredWalletInfo.signMessage
+                } as LocalStoredWalletInfo);
+            })();
+        },
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        []
+    );
+
+    return (
+        <div className="App">
+            <div className="App-container">
+                <img className="App-logo" src={logo} alt="The eye"/>
+                <h2 className="App-title">Enter The Lounge</h2>
+                <span className="App-subtitle">Verify you as true holder of one of Meta Foxonary NFTs.
+                    <br/>
+                    If somehow you're still not owning our NFT, there is
+                    <a className="App-subtitle-marketplace-link" href="https://magiceden.io/" target="_blank"
+                       rel="noreferrer"> one very secret place </a>
+                    where you can get one
+                </span>
+                <div className="App-login-button-container">
+                    <button
+                        className={`App-login-button${connectDiscordState.success ? ' App-login-button-success' : ''}`}
+                        disabled={connectDiscordState.disabled}
+                        onClick={handleConnectDiscordButtonClick}
+                    >
+                        {connectDiscordState.icon ? <div className="App-button-icon">{connectDiscordState.icon}</div> :
+                            <template/>}
+                        {connectDiscordState.text}
+                    </button>
+                    <div className="App-button-adv">
+                        <span className="App-button-description">Login via discord account</span>
+                        {connectDiscordState.success ?
+                            <button className="App-button-reset"
+                                    onClick={handleResetDiscordButtonClick}>reset</button> :
+                            <div/>}
+
+                    </div>
+                    <button
+                        className={`App-login-button${connectWalletState.success ? ' App-login-button-success' : ''}`}
+                        disabled={connectWalletState.disabled}
+                        onClick={handleConnectWalletButtonClick}
+                    >
+                        {connectWalletState.icon ? <div className="App-button-icon">{connectWalletState.icon}</div> :
+                            <template/>}
+                        {connectWalletState.text}
+                    </button>
+                    <div className="App-button-adv">
+                        <span className="App-button-description">Approve signature to verify wallet ownership</span>
+                        {connectWalletState.success ?
+                            <button className="App-button-reset" onClick={handleResetWalletButtonClick}>reset</button> :
+                            <div/>}
+
+                    </div>
+                </div>
+                <button className="App-submit-button">Verify</button>
+            </div>
+        </div>
+    );
+}
+
+export default App;
